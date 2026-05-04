@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TAKYIEM Executive Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="page">
+    <section class="header">
+      <div class="brand">
+        <img src="logo.jpeg" alt="TAKYIEM Logo" />
+        <div class="title">
+          <h1>Customer Service & Sales Performance</h1>
+          <p>Executive Dashboard • Q1 / Sales Activation 2026</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="langToggle" class="lang-toggle" type="button">العربية</button>
+        <div class="badge">Power BI-style HTML Dashboard</div>
+      </div>
+    </section>
+
+    <section class="insight">
+      <div class="banner">
+        <div class="eyebrow">Executive Summary</div>
+        <h2>Sales started late, but early conversion is strong.</h2>
+        <p>January, February and March had inactive selling activity. Starting 31 March, the sales pipeline became active, with 5 finalized contracts from 8 administration-initiated units.</p>
+      </div>
+      <div class="note">
+        <div class="eyebrow">Important New Note</div>
+        <h2>Ahmed Khaled • Administration</h2>
+        <p>Closed / initiated <b>8 units</b>. Units were distributed to the Sales team. <b>5 contracts</b> have been finalized so far, with <b>3 units pending</b>.</p>
+      </div>
+    </section>
+
+
+    <section class="controls-panel">
+      <div class="controls-header">
+        <div>
+          <div class="eyebrow">Data Control Center</div>
+          <h2>Upload data and filter every dashboard section</h2>
+          <p>Linked to Google Sheet. Press Refresh Google Sheet after edits, or upload Excel / CSV manually if needed.</p>
+        </div>
+        <div class="upload-box">
+          <label for="fileInput" class="file-label">+ Upload Data File</label>
+          <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+          <button id="refreshData" class="refresh-btn" type="button">Refresh Google Sheet</button>
+          <button id="resetData" class="ghost-btn" type="button">Reset Sample Data</button>
+          <div id="fileStatus" class="file-status">Linked to live Google Sheet</div>
+        </div>
+      </div>
+      <div class="filters-grid">
+        <label>Month<select id="filterMonth"><option value="">All</option></select></label>
+        <label>Excel Sheet<select id="filterSheet"><option value="">All</option></select></label>
+        <label>Sales / Owner<select id="filterSales"><option value="">All</option></select></label>
+        <label>Status<select id="filterStatus"><option value="">All</option></select></label>
+        <label>Source<select id="filterSource"><option value="">All</option></select></label>
+        <label>From Date<input id="filterFrom" type="date" /></label>
+        <label>To Date<input id="filterTo" type="date" /></label>
+        <label class="wide-filter">Search Name / Phone<input id="filterSearch" type="search" placeholder="Search..." /></label>
+        <button id="clearFilters" class="ghost-btn" type="button">Clear Filters</button>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <div class="card"><div class="label">Total Customer Records</div><div class="value" id="totalCustomers">-</div><div class="sub">All loaded months</div></div>
+      <div class="card highlight"><div class="label">Closed / Reserved Units</div><div class="value" id="reservationCount">-</div><div class="sub">All reservation / reserved / deposit / contract statuses</div></div>
+      <div class="card highlight"><div class="label">Reservation Rate</div><div class="value" id="reservationRate">-</div><div class="sub">Reservations / total leads</div></div>
+      <div class="card"><div class="label">Inquiry Rate</div><div class="value" id="inquiryRate">-</div><div class="sub">Customer service quality indicator</div></div>
+      <div class="card"><div class="label">Unreachable Rate</div><div class="value" id="unreachableRate">-</div><div class="sub">Follow-up risk</div></div>
+      <div class="card"><div class="label">Sales Start Date</div><div class="value" id="salesStart" style="font-size:24px">-</div><div class="sub">Activation point</div></div>
+      <div class="card"><div class="label">Top Sales Activity</div><div class="value" id="topSales" style="font-size:24px">-</div><div class="sub">By customer records</div></div>
+      <div class="card"><div class="label">Top Source</div><div class="value" id="topSource" style="font-size:24px">-</div><div class="sub">Highest lead source</div></div>
+      <div class="card"><div class="label">Top Status</div><div class="value" id="topStatus" style="font-size:24px">-</div><div class="sub">Dominant customer status</div></div>
+      <div class="card"><div class="label">Management Message</div><div class="value" style="font-size:24px">Q2 Potential</div><div class="sub">3 pending units to follow</div></div>
+    </section>
+
+    <section class="breakdown-grid">
+      <div class="panel breakdown-panel">
+        <h3>Status Breakdown / تحليل الحالات</h3>
+        <p class="hint">كل قيمة في عمود comment تظهر هنا بالعدد والنسبة من إجمالي البيانات المختارة.</p>
+        <div id="statusBars" class="compact-bars executive-bars"></div>
+      </div>
+      <div class="panel breakdown-panel">
+        <h3>Lead Source Breakdown / تحليل مصادر العملاء</h3>
+        <p class="hint">كل قيمة في عمود HOW did you hear about us تظهر هنا بالعدد والنسبة من إجمالي البيانات المختارة.</p>
+        <div id="sourceBars" class="compact-bars executive-bars"></div>
+      </div>
+    </section>
+
+
+    <section class="panel funnel-panel">
+      <h3>Sales Conversion Funnel</h3>
+      <p class="hint">Inquiry → Interested → Reserved → Contract Signed</p>
+      <div id="conversionFunnel" class="conversion-funnel"></div>
+    </section>
+
+    <section class="grid2 executive-only">
+      <div class="panel">
+        <h3>Sales Team Activity</h3>
+        <p class="hint">Customer records handled by each sales/admin owner.</p>
+        <div id="salesBars"></div>
+      </div>
+      <div class="panel">
+        <h3>Before vs After 31 March</h3>
+        <p class="hint">Management view: inactive selling phase vs active sales phase.</p>
+        <div id="beforeAfter"></div>
+      </div>
+      <div class="panel">
+        <h3>Executive Interpretation</h3>
+        <p class="hint">Decision-ready points for management.</p>
+        <div class="note" style="box-shadow:none">
+          <p>• Q1 sales results were impacted by late activation, not necessarily demand weakness.</p><br>
+          <p>• Track reservations and contract signed statuses as real conversion indicators.</p><br>
+          <p>• Compare source percentages to focus marketing budget on the strongest channels.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="created-patch">
+      <span class="created-icon">✓</span>
+      <span id="createdByText">Created by Ahmed Khaled</span>
+    </section>
+
+    <section class="footer">
+      <div><span>Core Message</span><b>Late Start</b></div>
+      <div><span>Conversion</span><b>62.5%</b></div>
+      <div><span>Contracts</span><b>5 of 8</b></div>
+      <div><span>Next Focus</span><b>Close 3 Pending</b></div>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
