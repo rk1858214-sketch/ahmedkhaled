@@ -159,16 +159,41 @@ function topEntry(obj){
 function percentOf(value,total){ return pct(((Number(value)||0)/(total||1))*100); }
 function getFilters(){ return { month:byId('filterMonth')?.value||'', sheet:byId('filterSheet')?.value||'', sales:byId('filterSales')?.value||'', status:byId('filterStatus')?.value||'', source:byId('filterSource')?.value||'', from:byId('filterFrom')?.value||'', to:byId('filterTo')?.value||'', search:lower(byId('filterSearch')?.value||'') }; }
 function filteredRows(){
-  const f=getFilters();
-  return allRows.filter(r=>{
-    if(f.month && norm(r.month)!==f.month) return false;
-    if(f.sheet && norm(r.sheet)!==f.sheet) return false;
-    if(f.sales && canonicalSales(r.sales)!==f.sales) return false;
-    if(f.status && canonicalStatus(r.comment)!==f.status) return false;
-    if(f.source && canonicalSource(r.source)!==f.source) return false;
-    if(f.from && r.date < f.from) return false;
-    if(f.to && r.date > f.to) return false;
-    if(f.search && !(lower(r.name).includes(f.search) || lower(r.phone).includes(f.search))) return false;
+  const f = getFilters();
+
+  return allRows.filter(r => {
+
+    if(f.month && norm(r.month) !== f.month) return false;
+    if(f.sheet && norm(r.sheet) !== f.sheet) return false;
+    if(f.sales && canonicalSales(r.sales) !== f.sales) return false;
+    if(f.status && canonicalStatus(r.comment) !== f.status) return false;
+    if(f.source && canonicalSource(r.source) !== f.source) return false;
+
+    // حل مشكلة التاريخ
+    const rowDate = new Date(r.date);
+
+    if(f.from){
+      const fromDate = new Date(f.from);
+      fromDate.setHours(0,0,0,0);
+
+      if(rowDate < fromDate) return false;
+    }
+
+    if(f.to){
+      const toDate = new Date(f.to);
+      toDate.setHours(23,59,59,999);
+
+      if(rowDate > toDate) return false;
+    }
+
+    if(
+      f.search &&
+      !(
+        lower(r.name).includes(f.search) ||
+        lower(r.phone).includes(f.search)
+      )
+    ) return false;
+
     return true;
   });
 }
