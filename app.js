@@ -290,6 +290,178 @@ function selectedFixedMetrics(){
   if(f.sales && f.sales !== 'Ahmed Khaled') return {adminUnits:0, contractsDone:0, pendingUnits:0};
   return fixedMetrics;
 }
+const weekDaysOrdered = [
+  { key: 6, ar: 'السبت', en: 'Saturday' },
+  { key: 0, ar: 'الأحد', en: 'Sunday' },
+  { key: 1, ar: 'الاثنين', en: 'Monday' },
+  { key: 2, ar: 'الثلاثاء', en: 'Tuesday' },
+  { key: 3, ar: 'الأربعاء', en: 'Wednesday' },
+  { key: 4, ar: 'الخميس', en: 'Thursday' },
+  { key: 5, ar: 'الجمعة', en: 'Friday' }
+];
+
+function monthSortKey(monthKey){
+  const d = new Date(monthKey + ' 01');
+  if(!isNaN(d)) return d.getFullYear() * 100 + d.getMonth();
+  return 999999;
+}
+
+function getMonthLabelFromDate(dateStr){
+  const d = dateToLocalMidnight(dateStr);
+  if(!d) return 'Unknown';
+
+  return d.toLocaleString('en-US', {
+    month: 'short',
+    year: 'numeric'
+  });
+}
+
+function getWeeklyPeakData(rows){
+  const grouped = {};
+
+  rows.forEach(r => {
+    const d = dateToLocalMidnight(r.date);
+    if(!d) return;
+
+    const monthKey = getMonthLabelFromDate(r.date);
+    const dayIndex = d.getDay();
+
+    if(!grouped[monthKey]){
+      grouped[monthKey] = {
+        month: monthKey,
+        total: 0,
+        days: {}
+      };
+
+      weekDaysOrdered.forEach(day => {
+        grouped[monthKey].days[day.en] = 0;
+      });
+    }
+
+    const foundDay = weekDaysOrdered.find(day => day.key === dayIndex);
+    if(!foundDay) return;
+
+    grouped[monthKey].days[foundDay.en] += 1;
+    grouped[monthKey].total += 1;
+  });
+
+  return Object.values(grouped).map(row => {
+    let peakDay = '-';
+    let peakDayAr = '-';
+    let peakCount = 0;
+
+    weekDaysOrdered.forEach(day => {
+      const count = row.days[day.en] || 0;
+      if(count > peakCount){
+        peakDay = day.en;
+        peakDayAr = day.ar;
+        peakCount = count;
+      }
+    });
+
+    return {
+      ...row,
+      peakDay,
+      peakDayAr,
+      peakCount
+    };
+  }).sort((a,b) => monthSortKey(a.month) - monthSortKey(b.month));
+}
+
+function renderWeeklyPeakAnalysis(){
+  const bestEl = byId('weeklyPeakBest');
+  const cardsEl = byId('weeklyPeakCards');
+  const tableEl = byId('weeklyPeakTable');
+
+  if(!bestEl || !cardsEl || !tableEl) return;
+
+  const rows = filteredRows();
+  const data = getWeeklyPeakData(rows);
+
+  if(!data.length){
+    bestEl.textContent = 'No data';
+    cardsEl.innerHTML = `<div class="empty-state">لا توجد بيانات حسب الفلتر الحالي</div>`;
+    tableEl.innerHTML = '';
+    return;
+  }
+
+  const globalDays = {};
+  weekDaysOrdered.forEach(day => globalDays[day.en] = 0);
+
+  data.forEach(month => {
+    weekDaysOrdered.forEach(day => {
+      globalDays[day.en] += month.days[day.en] || 0;
+    });
+  });
+
+  let globalPeak = weekDaysOrdered[0];
+  let globalPeakCount = 0;
+
+  weekDaysOrdered.forEach(day => {
+    if(globalDays[day.en] > globalPeakCount){
+      globalPeak = day;
+      globalPeakCount = globalDays[day.en];
+    }
+  });
+
+  bestEl.innerHTML = `
+    <div style="font-size:12px;opacity:.8">Overall Peak Day</div>
+    <div style="font-size:24px;margin-top:4px">${globalPeak.en}</div>
+    <div style="font-size:13px;margin-top:4px">${globalPeak.ar} • ${fmt.format(globalPeakCount)} records</div>
+  `;
+
+  cardsEl.innerHTML = data.map(month => {
+    const max = Math.max(...weekDaysOrdered.map(day => month.days[day.en] || 0), 1);
+
+    return `
+      <div class="weekly-card">
+        <div class="month">${month.month}</div>
+        <div class="peak">${month.peakDay}</div>
+        <div class="sub">${month.peakDayAr} • ${fmt.format(month.peakCount)} من ${fmt.format(month.total)}</div>
+
+        <div class="week-bars">
+          ${weekDaysOrdered.map(day => {
+            const value = month.days[day.en] || 0;
+            const width = Math.round((value / max) * 100);
+
+            return `
+              <div class="week-bar-row">
+                <span>${day.en}</span>
+                <div class="week-bar-track">
+                  <div class="week-bar-fill" style="width:${width}%"></div>
+                </div>
+                <span>${fmt.format(value)}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  tableEl.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Month</th>
+          ${weekDaysOrdered.map(day => `<th>${day.en}</th>`).join('')}
+          <th>Peak Day</th>
+          <th>Peak Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.map(month => `
+          <tr>
+            <td>${month.month}</td>
+            ${weekDaysOrdered.map(day => `<td>${fmt.format(month.days[day.en] || 0)}</td>`).join('')}
+            <td class="peak-cell">${month.peakDay}</td>
+            <td class="peak-cell">${fmt.format(month.peakCount)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
 function initKPIs(){
   const m=calculate();
   const fx=selectedFixedMetrics();
@@ -460,6 +632,8 @@ async function readFileRows(file){
 function refreshDashboard(message){
   populateFilters();
   renderTables();
+  renderWeeklyPeakAnalysis();
+
   const status=byId('fileStatus');
   if(status && message) status.textContent=message;
 }
