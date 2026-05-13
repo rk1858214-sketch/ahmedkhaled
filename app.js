@@ -372,61 +372,151 @@ function renderWeeklyPeakAnalysis(){
   const bestEl = byId('weeklyPeakBest');
   const cardsEl = byId('weeklyPeakCards');
   const tableEl = byId('weeklyPeakTable');
+  const rankingEl = byId('weeklyDayRanking');
 
   if(!bestEl || !cardsEl || !tableEl) return;
 
+  const isAr = currentLang === 'ar';
   const rows = filteredRows();
-  const data = getWeeklyPeakData(rows);
+
+  const labels = {
+    overallPeakDay: isAr ? 'أقوى يوم إجماليًا' : 'Overall Peak Day',
+    records: isAr ? 'سجل' : 'records',
+    noData: isAr ? 'لا توجد بيانات حسب الفلتر الحالي' : 'No data for current filters',
+    month: isAr ? 'الشهر' : 'Month',
+    peakDay: isAr ? 'يوم الذروة' : 'Peak Day',
+    peakCount: isAr ? 'عدد الذروة' : 'Peak Count',
+    rankingTitle: isAr ? 'ترتيب أيام الأسبوع من الأفضل للأقل' : 'Weekdays Ranking From Best to Lowest',
+    fromTotal: isAr ? 'من إجمالي' : 'from total'
+  };
+
+  const weekDays = [
+    { en:'Saturday', ar:'السبت', index:6 },
+    { en:'Sunday', ar:'الأحد', index:0 },
+    { en:'Monday', ar:'الاثنين', index:1 },
+    { en:'Tuesday', ar:'الثلاثاء', index:2 },
+    { en:'Wednesday', ar:'الأربعاء', index:3 },
+    { en:'Thursday', ar:'الخميس', index:4 },
+    { en:'Friday', ar:'الجمعة', index:5 }
+  ];
+
+  function dayLabel(day){
+    return isAr ? day.ar : day.en;
+  }
+
+  const monthly = {};
+
+  rows.forEach(r => {
+    const d = getSafeDateForWeek(r.date);
+    if(!d) return;
+
+    const monthKey = d.toLocaleString('en-US', {
+      month:'short',
+      year:'numeric'
+    });
+
+    const day = weekDays.find(x => x.index === d.getDay());
+    if(!day) return;
+
+    if(!monthly[monthKey]){
+      monthly[monthKey] = {
+        month: monthKey,
+        total: 0,
+        days: {}
+      };
+
+      weekDays.forEach(x => {
+        monthly[monthKey].days[x.en] = 0;
+      });
+    }
+
+    monthly[monthKey].days[day.en]++;
+    monthly[monthKey].total++;
+  });
+
+  const data = Object.values(monthly);
 
   if(!data.length){
-    bestEl.textContent = 'No data';
-    cardsEl.innerHTML = `<div class="empty-state">لا توجد بيانات حسب الفلتر الحالي</div>`;
+    bestEl.innerHTML = '-';
+    cardsEl.innerHTML = `<div class="empty-state">${labels.noData}</div>`;
     tableEl.innerHTML = '';
+    if(rankingEl) rankingEl.innerHTML = '';
     return;
   }
 
-  const globalDays = {};
-  weekDaysOrdered.forEach(day => globalDays[day.en] = 0);
+  data.forEach(m => {
+    let peakDay = weekDays[0];
+    let peakCount = 0;
 
-  data.forEach(month => {
-    weekDaysOrdered.forEach(day => {
-      globalDays[day.en] += month.days[day.en] || 0;
+    weekDays.forEach(day => {
+      const count = m.days[day.en] || 0;
+      if(count > peakCount){
+        peakDay = day;
+        peakCount = count;
+      }
+    });
+
+    m.peakDay = peakDay;
+    m.peakCount = peakCount;
+  });
+
+  data.sort((a,b) => {
+    const da = new Date('01 ' + a.month);
+    const db = new Date('01 ' + b.month);
+    return da - db;
+  });
+
+  const overall = {};
+  weekDays.forEach(day => overall[day.en] = 0);
+
+  data.forEach(m => {
+    weekDays.forEach(day => {
+      overall[day.en] += m.days[day.en] || 0;
     });
   });
 
-  let globalPeak = weekDaysOrdered[0];
-  let globalPeakCount = 0;
+  let overallPeak = weekDays[0];
+  let overallPeakCount = 0;
 
-  weekDaysOrdered.forEach(day => {
-    if(globalDays[day.en] > globalPeakCount){
-      globalPeak = day;
-      globalPeakCount = globalDays[day.en];
+  weekDays.forEach(day => {
+    if(overall[day.en] > overallPeakCount){
+      overallPeak = day;
+      overallPeakCount = overall[day.en];
     }
   });
 
+  const weekdayRanking = weekDays
+    .map(day => ({
+      ...day,
+      count: overall[day.en] || 0
+    }))
+    .sort((a,b) => b.count - a.count);
+
+  const maxRankingCount = Math.max(...weekdayRanking.map(day => day.count), 1);
+
   bestEl.innerHTML = `
-    <div style="font-size:12px;opacity:.8">Overall Peak Day</div>
-    <div style="font-size:24px;margin-top:4px">${globalPeak.en}</div>
-    <div style="font-size:13px;margin-top:4px">${globalPeak.ar} • ${fmt.format(globalPeakCount)} records</div>
+    <div style="font-size:12px;opacity:.85">${labels.overallPeakDay}</div>
+    <div style="font-size:24px;margin-top:4px">${dayLabel(overallPeak)}</div>
+    <div style="font-size:13px;margin-top:4px">${fmt.format(overallPeakCount)} ${labels.records}</div>
   `;
 
-  cardsEl.innerHTML = data.map(month => {
-    const max = Math.max(...weekDaysOrdered.map(day => month.days[day.en] || 0), 1);
+  cardsEl.innerHTML = data.map(m => {
+    const max = Math.max(...weekDays.map(day => m.days[day.en] || 0), 1);
 
     return `
       <div class="weekly-card">
-        <div class="month">${month.month}</div>
-        <div class="peak">${month.peakDay}</div>
-        <div class="sub">${month.peakDayAr} • ${fmt.format(month.peakCount)} من ${fmt.format(month.total)}</div>
+        <div class="month">${m.month}</div>
+        <div class="peak">${dayLabel(m.peakDay)}</div>
+        <div class="sub">${fmt.format(m.peakCount)} ${labels.records} ${labels.fromTotal} ${fmt.format(m.total)}</div>
 
         <div class="week-bars">
-          ${weekDaysOrdered.map(day => {
-            const value = month.days[day.en] || 0;
+          ${weekDays.map(day => {
+            const value = m.days[day.en] || 0;
             const width = Math.round((value / max) * 100);
 
             return `
               <div class="week-bar-row">
-                <span>${day.en}</span>
+                <span>${dayLabel(day)}</span>
                 <div class="week-bar-track">
                   <div class="week-bar-fill" style="width:${width}%"></div>
                 </div>
@@ -443,24 +533,47 @@ function renderWeeklyPeakAnalysis(){
     <table>
       <thead>
         <tr>
-          <th>Month</th>
-          ${weekDaysOrdered.map(day => `<th>${day.en}</th>`).join('')}
-          <th>Peak Day</th>
-          <th>Peak Count</th>
+          <th>${labels.month}</th>
+          ${weekDays.map(day => `<th>${dayLabel(day)}</th>`).join('')}
+          <th>${labels.peakDay}</th>
+          <th>${labels.peakCount}</th>
         </tr>
       </thead>
       <tbody>
-        ${data.map(month => `
+        ${data.map(m => `
           <tr>
-            <td>${month.month}</td>
-            ${weekDaysOrdered.map(day => `<td>${fmt.format(month.days[day.en] || 0)}</td>`).join('')}
-            <td class="peak-cell">${month.peakDay}</td>
-            <td class="peak-cell">${fmt.format(month.peakCount)}</td>
+            <td>${m.month}</td>
+            ${weekDays.map(day => `<td>${fmt.format(m.days[day.en] || 0)}</td>`).join('')}
+            <td class="peak-cell">${dayLabel(m.peakDay)}</td>
+            <td class="peak-cell">${fmt.format(m.peakCount)}</td>
           </tr>
         `).join('')}
       </tbody>
     </table>
   `;
+
+  if(rankingEl){
+    rankingEl.innerHTML = `
+      <h4>${labels.rankingTitle}</h4>
+
+      <div class="weekly-ranking-list">
+        ${weekdayRanking.map((day, index) => {
+          const width = Math.round((day.count / maxRankingCount) * 100);
+
+          return `
+            <div class="weekly-ranking-row">
+              <div class="weekly-rank-number">${index + 1}</div>
+              <div class="weekly-rank-day">${dayLabel(day)}</div>
+              <div class="weekly-rank-track">
+                <div class="weekly-rank-fill" style="width:${width}%"></div>
+              </div>
+              <div class="weekly-rank-value">${fmt.format(day.count)}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
 }
 function initKPIs(){
   const m=calculate();
@@ -670,8 +783,9 @@ function translateTextNodes(lang){
  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT); const nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
  nodes.forEach(node=>{ const base=originalText.get(node)||node.nodeValue; if(!originalText.has(node)) originalText.set(node,base); const trimmed=base.trim(); if(!trimmed) return; node.nodeValue=base.replace(trimmed, lang==='ar' ? (translations.ar[trimmed]||trimmed) : trimmed); });
  const btn=byId('langToggle'); if(btn) btn.textContent=lang==='ar'?'English':'العربية'; const created=byId('createdByText'); if(created) created.textContent=t('Created by Ahmed Khaled');
- populateFilters(); renderTables();
-}
+populateFilters();
+renderTables();
+renderWeeklyPeakAnalysis();}
 function initLanguageToggle(){ byId('langToggle')?.addEventListener('click',()=>translateTextNodes(currentLang==='ar'?'en':'ar')); translateTextNodes(currentLang); }
 function build(){ allRows=allRows.map(r=>({...r, sheet:r.sheet||r.month||'Sample', sales: canonicalSales(r.sales), comment: canonicalStatus(r.comment), source: canonicalSource(r.source)})); initFilters(); initUpload(); renderTables(); initLanguageToggle(); }
 document.addEventListener('DOMContentLoaded',build);
