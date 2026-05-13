@@ -206,4 +206,74 @@ body.rtl .weekly-peak-table td:last-child{
   .weekly-peak-cards{
     grid-template-columns:1fr;
   }
+  .weekly-day-ranking{
+  margin-top:18px;
+  background:#fbfdfc;
+  border:1px solid #e1ece9;
+  border-radius:20px;
+  padding:18px;
+}
+
+.weekly-day-ranking h4{
+  margin:0 0 14px;
+  color:var(--primary-dark);
+  font-size:18px;
+}
+
+.weekly-ranking-list{
+  display:grid;
+  gap:10px;
+}
+
+.weekly-ranking-row{
+  display:grid;
+  grid-template-columns:42px 120px 1fr 70px;
+  align-items:center;
+  gap:12px;
+  font-weight:900;
+}
+
+.weekly-rank-number{
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:var(--primary-dark);
+  color:#fff;
+  font-size:14px;
+}
+
+.weekly-rank-day{
+  color:var(--primary-dark);
+}
+
+.weekly-rank-track{
+  height:14px;
+  background:#eaf4f1;
+  border-radius:999px;
+  overflow:hidden;
+}
+
+.weekly-rank-fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--primary-dark),var(--mint));
+  border-radius:999px;
+}
+
+.weekly-rank-value{
+  text-align:right;
+  color:var(--primary-dark);
+}
+
+body.rtl .weekly-rank-value{
+  text-align:left;
+}
+
+@media(max-width:900px){
+  .weekly-ranking-row{
+    grid-template-columns:36px 90px 1fr 48px;
+    gap:8px;
+  }
+}
 }
