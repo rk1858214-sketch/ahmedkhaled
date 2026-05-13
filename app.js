@@ -675,3 +675,177 @@ function translateTextNodes(lang){
 function initLanguageToggle(){ byId('langToggle')?.addEventListener('click',()=>translateTextNodes(currentLang==='ar'?'en':'ar')); translateTextNodes(currentLang); }
 function build(){ allRows=allRows.map(r=>({...r, sheet:r.sheet||r.month||'Sample', sales: canonicalSales(r.sales), comment: canonicalStatus(r.comment), source: canonicalSource(r.source)})); initFilters(); initUpload(); renderTables(); initLanguageToggle(); }
 document.addEventListener('DOMContentLoaded',build);
+function getSafeDateForWeek(dateStr){
+  const clean = parseExcelDate(dateStr);
+  if(!clean) return null;
+
+  const parts = clean.split('-');
+  if(parts.length !== 3) return null;
+
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+
+  if(!y || !m || !d) return null;
+
+  return new Date(y, m - 1, d);
+}
+
+function renderWeeklyPeakAnalysis(){
+  const bestEl = byId('weeklyPeakBest');
+  const cardsEl = byId('weeklyPeakCards');
+  const tableEl = byId('weeklyPeakTable');
+
+  if(!bestEl || !cardsEl || !tableEl) return;
+
+  const rows = filteredRows();
+
+  const weekDays = [
+    { en:'Saturday', ar:'السبت', index:6 },
+    { en:'Sunday', ar:'الأحد', index:0 },
+    { en:'Monday', ar:'الاثنين', index:1 },
+    { en:'Tuesday', ar:'الثلاثاء', index:2 },
+    { en:'Wednesday', ar:'الأربعاء', index:3 },
+    { en:'Thursday', ar:'الخميس', index:4 },
+    { en:'Friday', ar:'الجمعة', index:5 }
+  ];
+
+  const monthly = {};
+
+  rows.forEach(r => {
+    const d = getSafeDateForWeek(r.date);
+    if(!d) return;
+
+    const monthKey = d.toLocaleString('en-US', {
+      month:'short',
+      year:'numeric'
+    });
+
+    const day = weekDays.find(x => x.index === d.getDay());
+    if(!day) return;
+
+    if(!monthly[monthKey]){
+      monthly[monthKey] = {
+        month: monthKey,
+        total: 0,
+        days: {}
+      };
+
+      weekDays.forEach(x => {
+        monthly[monthKey].days[x.en] = 0;
+      });
+    }
+
+    monthly[monthKey].days[day.en]++;
+    monthly[monthKey].total++;
+  });
+
+  const data = Object.values(monthly);
+
+  if(!data.length){
+    bestEl.innerHTML = '-';
+    cardsEl.innerHTML = `<div class="empty-state">لا توجد بيانات حسب الفلتر الحالي</div>`;
+    tableEl.innerHTML = '';
+    return;
+  }
+
+  data.forEach(m => {
+    let peakDay = weekDays[0];
+    let peakCount = 0;
+
+    weekDays.forEach(day => {
+      const count = m.days[day.en] || 0;
+      if(count > peakCount){
+        peakDay = day;
+        peakCount = count;
+      }
+    });
+
+    m.peakDay = peakDay.en;
+    m.peakDayAr = peakDay.ar;
+    m.peakCount = peakCount;
+  });
+
+  data.sort((a,b) => {
+    const da = new Date('01 ' + a.month);
+    const db = new Date('01 ' + b.month);
+    return da - db;
+  });
+
+  const overall = {};
+  weekDays.forEach(day => overall[day.en] = 0);
+
+  data.forEach(m => {
+    weekDays.forEach(day => {
+      overall[day.en] += m.days[day.en] || 0;
+    });
+  });
+
+  let overallPeak = weekDays[0];
+  let overallPeakCount = 0;
+
+  weekDays.forEach(day => {
+    if(overall[day.en] > overallPeakCount){
+      overallPeak = day;
+      overallPeakCount = overall[day.en];
+    }
+  });
+
+  bestEl.innerHTML = `
+    <div style="font-size:12px;opacity:.85">Overall Peak Day</div>
+    <div style="font-size:24px;margin-top:4px">${overallPeak.en}</div>
+    <div style="font-size:13px;margin-top:4px">${overallPeak.ar} • ${fmt.format(overallPeakCount)} records</div>
+  `;
+
+  cardsEl.innerHTML = data.map(m => {
+    const max = Math.max(...weekDays.map(day => m.days[day.en] || 0), 1);
+
+    return `
+      <div class="weekly-card">
+        <div class="month">${m.month}</div>
+        <div class="peak">${m.peakDay}</div>
+        <div class="sub">${m.peakDayAr} • ${fmt.format(m.peakCount)} من ${fmt.format(m.total)}</div>
+
+        <div class="week-bars">
+          ${weekDays.map(day => {
+            const value = m.days[day.en] || 0;
+            const width = Math.round((value / max) * 100);
+
+            return `
+              <div class="week-bar-row">
+                <span>${day.en}</span>
+                <div class="week-bar-track">
+                  <div class="week-bar-fill" style="width:${width}%"></div>
+                </div>
+                <span>${fmt.format(value)}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  tableEl.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Month</th>
+          ${weekDays.map(day => `<th>${day.en}</th>`).join('')}
+          <th>Peak Day</th>
+          <th>Peak Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.map(m => `
+          <tr>
+            <td>${m.month}</td>
+            ${weekDays.map(day => `<td>${fmt.format(m.days[day.en] || 0)}</td>`).join('')}
+            <td class="peak-cell">${m.peakDay}</td>
+            <td class="peak-cell">${fmt.format(m.peakCount)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
