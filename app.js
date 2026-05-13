@@ -169,18 +169,38 @@ function filteredRows(){
     if(f.status && canonicalStatus(r.comment) !== f.status) return false;
     if(f.source && canonicalSource(r.source) !== f.source) return false;
 
-    // حل مشكلة التاريخ
-    const rowDate = new Date(r.date);
+    // تحويل التاريخ Local بدون مشاكل UTC
+    const rowDateParts = r.date.split('-');
+
+    const rowDate = new Date(
+      rowDateParts[0],
+      rowDateParts[1] - 1,
+      rowDateParts[2]
+    );
 
     if(f.from){
-      const fromDate = new Date(f.from);
+      const fromParts = f.from.split('-');
+
+      const fromDate = new Date(
+        fromParts[0],
+        fromParts[1] - 1,
+        fromParts[2]
+      );
+
       fromDate.setHours(0,0,0,0);
 
       if(rowDate < fromDate) return false;
     }
 
     if(f.to){
-      const toDate = new Date(f.to);
+      const toParts = f.to.split('-');
+
+      const toDate = new Date(
+        toParts[0],
+        toParts[1] - 1,
+        toParts[2]
+      );
+
       toDate.setHours(23,59,59,999);
 
       if(rowDate > toDate) return false;
