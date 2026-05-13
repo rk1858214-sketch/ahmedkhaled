@@ -111,12 +111,71 @@ function isContractStatus(v){
 function isInterestedStatus(v){ return cleanStatus(v).includes('interested') && !cleanStatus(v).includes('not interested'); }
 function isInquiryStatus(v){ return cleanStatus(v).includes('inquiry'); }
 function canonicalSource(v){ return lower(v) || 'unknown'; }
+function pad2(n){
+  return String(n).padStart(2, '0');
+}
+
+function formatLocalDate(d){
+  if(!(d instanceof Date) || isNaN(d)) return '';
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
 function parseExcelDate(v){
-  if(!v) return '';
-  if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
-  if(typeof v === 'number'){ const d = new Date(Math.round((v-25569)*86400*1000)); return d.toISOString().slice(0,10); }
-  const s = norm(v); const d = new Date(s); if(!isNaN(d)) return d.toISOString().slice(0,10);
-  return s.slice(0,10);
+  if(v === null || v === undefined || v === '') return '';
+
+  // لو التاريخ جاي من Excel كـ Date
+  if(v instanceof Date && !isNaN(v)){
+    return formatLocalDate(v);
+  }
+
+  // لو التاريخ جاي من Excel كرقم Serial
+  if(typeof v === 'number'){
+    const utcDays = Math.floor(v - 25569);
+    const utcValue = utcDays * 86400 * 1000;
+    const d = new Date(utcValue);
+    return formatLocalDate(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  }
+
+  const s = String(v).trim();
+  if(!s) return '';
+
+  // صيغة ثابتة: 2026-05-13
+  let m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if(m){
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const da = Number(m[3]);
+    return `${y}-${pad2(mo)}-${pad2(da)}`;
+  }
+
+  // صيغة Google Sheet غالبًا: 05-13-2026 = MM-DD-YYYY
+  m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if(m){
+    let a = Number(m[1]);
+    let b = Number(m[2]);
+    const y = Number(m[3]);
+
+    let mo, da;
+
+    // لو أول رقم أكبر من 12 يبقى ده اليوم: DD-MM-YYYY
+    if(a > 12){
+      da = a;
+      mo = b;
+    }else{
+      // غير كده اعتبرها MM-DD-YYYY لأن Google Sheet عندك ظاهر كده
+      mo = a;
+      da = b;
+    }
+
+    return `${y}-${pad2(mo)}-${pad2(da)}`;
+  }
+
+  const d = new Date(s);
+  if(!isNaN(d)){
+    return formatLocalDate(d);
+  }
+
+  return s.slice(0, 10);
 }
 function loadSavedRows(){ try{ return JSON.parse(localStorage.getItem('takyiemRows') || 'null'); }catch(e){ return null; } }
 function saveRows(rows){ localStorage.setItem('takyiemRows', JSON.stringify(rows)); }
@@ -158,8 +217,34 @@ function topEntry(obj){
 }
 function percentOf(value,total){ return pct(((Number(value)||0)/(total||1))*100); }
 function getFilters(){ return { month:byId('filterMonth')?.value||'', sheet:byId('filterSheet')?.value||'', sales:byId('filterSales')?.value||'', status:byId('filterStatus')?.value||'', source:byId('filterSource')?.value||'', from:byId('filterFrom')?.value||'', to:byId('filterTo')?.value||'', search:lower(byId('filterSearch')?.value||'') }; }
+function dateToLocalMidnight(dateStr){
+  if(!dateStr) return null;
+
+  const clean = parseExcelDate(dateStr);
+  const parts = clean.split('-');
+
+  if(parts.length !== 3) return null;
+
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+
+  if(!y || !m || !d) return null;
+
+  const out = new Date(y, m - 1, d);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
 function filteredRows(){
   const f = getFilters();
+
+  const fromDate = f.from ? dateToLocalMidnight(f.from) : null;
+  const toDate = f.to ? dateToLocalMidnight(f.to) : null;
+
+  if(toDate){
+    toDate.setHours(23, 59, 59, 999);
+  }
 
   return allRows.filter(r => {
 
@@ -169,44 +254,10 @@ function filteredRows(){
     if(f.status && canonicalStatus(r.comment) !== f.status) return false;
     if(f.source && canonicalSource(r.source) !== f.source) return false;
 
-    // تحويل التاريخ Local بدون مشاكل UTC
-    const rowDateParts = r.date.split('-');
+    const rowDate = dateToLocalMidnight(r.date);
 
-   const rowDate = new Date(
-  rowDateParts[0],
-  rowDateParts[1] - 1,
-  rowDateParts[2]
-);
-
-rowDate.setHours(0,0,0,0);
-
-    if(f.from){
-      const fromParts = f.from.split('-');
-
-      const fromDate = new Date(
-        fromParts[0],
-        fromParts[1] - 1,
-        fromParts[2]
-      );
-
-      fromDate.setHours(0,0,0,0);
-
-      if(rowDate < fromDate) return false;
-    }
-
-    if(f.to){
-      const toParts = f.to.split('-');
-
-      const toDate = new Date(
-        toParts[0],
-        toParts[1] - 1,
-        toParts[2]
-      );
-
-      toDate.setHours(23,59,59,999);
-
-      if(rowDate > toDate) return false;
-    }
+    if(fromDate && (!rowDate || rowDate < fromDate)) return false;
+    if(toDate && (!rowDate || rowDate > toDate)) return false;
 
     if(
       f.search &&
