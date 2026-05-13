@@ -172,11 +172,13 @@ function filteredRows(){
     // تحويل التاريخ Local بدون مشاكل UTC
     const rowDateParts = r.date.split('-');
 
-    const rowDate = new Date(
-      rowDateParts[0],
-      rowDateParts[1] - 1,
-      rowDateParts[2]
-    );
+   const rowDate = new Date(
+  rowDateParts[0],
+  rowDateParts[1] - 1,
+  rowDateParts[2]
+);
+
+rowDate.setHours(0,0,0,0);
 
     if(f.from){
       const fromParts = f.from.split('-');
